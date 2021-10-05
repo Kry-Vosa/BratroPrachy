@@ -1,5 +1,11 @@
-import src.prachy, contextlib, sys
+""" this whole thing is here for it to be OS independant. """
+
+import subprocess
+
+flags = None
+
+if "CREATE_NO_WINDOW" in dir(subprocess):
+    flags = subprocess.CREATE_NO_WINDOW
+
 with open('last_run.log', 'w+') as f:
-    with contextlib.redirect_stdout(f), contextlib.redirect_stderr(sys.stdout):
-        src.prachy.run_app()
-        print("Run done!")
+    subprocess.call(["py", "./src/prachy.py"], stdout=f, stderr=subprocess.STDOUT, creationflags=flags)

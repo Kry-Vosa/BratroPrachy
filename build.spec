@@ -5,7 +5,7 @@ block_cipher = None
 
 
 a = Analysis(['src/prachy.py'],
-             pathex=["src/"],
+             pathex=[],
              binaries=[],
              datas=[],
              hiddenimports=[],
