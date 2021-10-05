@@ -34,7 +34,7 @@ class App(tk.Tk):
         
         self.open_frame("MainPage")
         
-    def open_frame(self, name, returned_from=False, *args, **kwargs):
+    def open_frame(self, name, *args, returned_from=False, **kwargs):
         frame = self.frames[name];
         if returned_from:
             ret = frame.returned_back(returned_from, *args, **kwargs)
@@ -179,7 +179,10 @@ class EditProfile(tk.Frame):
     
     def exit_button_callback(self):
         self.clear()
-        self.app.open_frame(self.return_to, returned_from = "EditProfile")
+        if self.return_to:
+            self.app.open_frame(self.return_to, returned_from = "EditProfile")
+        else:
+            self.app.open_frame("MainPage")
         
     def add_funds_button_callback(self):
         value_add = self.input_funds.get()
@@ -214,7 +217,7 @@ class EditProfile(tk.Frame):
         self.load_old_orders()
 
     
-    def setup(self, customer_num, return_to="MainPage"):
+    def setup(self, customer_num, return_to=None):
         self.return_to = return_to
         self.customer_num = customer_num
         self.customer_label["text"] = customer_num
