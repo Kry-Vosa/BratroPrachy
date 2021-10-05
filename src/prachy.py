@@ -3,6 +3,7 @@ import tkinter.messagebox as tkmessagebox
 import tkinter.scrolledtext as tkscrolledtext
 import tkinter.font as tkFont
 import sqlite3, json, sys
+import dbutils
 
 def only4Num(inStr, acttyp):
     if acttyp == '1': #insert
@@ -10,87 +11,6 @@ def only4Num(inStr, acttyp):
             return False
     return True
 
-def get_money(customer_id):
-    with sqlite3.connect("prachy.db") as conn:
-        cur = conn.cursor()
-        
-        cur.execute("""
-            SELECT SUM(balance_change) FROM payments WHERE customer_id = ?;
-        """, (customer_id,))
-        ret = cur.fetchone()[0]
-        if not ret:
-            return 0
-        return ret
-
-def save_order(customer_id, order):
-    with sqlite3.connect("prachy.db") as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO payments (customer_id, description, balance_change) VALUES (?, "ORDER_PAYMENT", 0)
-        """, (customer_id,))
-        
-        payment_id = cur.lastrowid
-        cur.executemany("""
-            INSERT INTO orders (payment_id, item_name, item_cost, count) VALUES (?, ?, ?, ?)
-        """, [(payment_id, val, val, count) for val, count in order.items()])
-        
-        cur.execute("""
-            UPDATE payments SET balance_change = -1 * (SELECT SUM(cost_total) FROM orders WHERE payment_id = ?) WHERE payment_id = ?
-        """, (payment_id, payment_id))
-        
-        conn.commit()
-
-def add_funds(customer_id, amount):
-    with sqlite3.connect("prachy.db") as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO payments (customer_id, description, balance_change) VALUES (?, "ADD_FUNDS", ?)
-        """, (customer_id, amount))
-        conn.commit()
-
-def remove_funds(customer_id, amount):
-    with sqlite3.connect("prachy.db") as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO payments (customer_id, description, balance_change) VALUES (?, "REMOVE_FUNDS", ?)
-        """, (customer_id, -amount))
-        conn.commit()
-
-def get_payment_list(customer_id):
-    with sqlite3.connect("prachy.db") as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT payment_id, description, stamp, balance_change, CASE WHEN EXISTS (SELECT * FROM orders WHERE orders.payment_id = payments.payment_id) THEN 1 ELSE 0 END as order_exists FROM payments
-            WHERE customer_id = ?
-            ORDER BY stamp ASC
-        """, (customer_id,))
-        
-        payments = [list(x) for x in cur.fetchall()]
-        
-    for payment in payments:
-        if payment[4]:
-            payment[4] = get_order_list(payment[0])
-        else:
-            payment[4] = []
-    
-    return payments
-    
-def delete_payment(payment_id):
-    with sqlite3.connect("prachy.db") as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            DELETE FROM payments WHERE payment_id = ?
-        """, (payment_id,))
-
-def get_order_list(payment_id):
-    with sqlite3.connect("prachy.db") as conn:
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT item_name, count, cost_total FROM orders WHERE payment_id = ?
-            ORDER BY item_name DESC
-        """, (payment_id,))
-        return cur.fetchall()
-        
 
 class App(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -101,10 +21,7 @@ class App(tk.Tk):
         self.wm_geometry("800x600")
         self.state('zoomed')
         
-        self.prepare_db()
-        
-        
-        
+        dbutils.prepare_db()
         
         self.frames = {
             "MainPage": MainPage(self),
@@ -134,43 +51,7 @@ class App(tk.Tk):
             print(ex)
             tkmessagebox.showerror(title="Chyba v nastavení", message="Při načítání config.json se objevila nějaká chyba\nZkontrolujte, že je všechno tak, jak má být.")
             sys.exit()
-            
-            
-    @staticmethod        
-    def prepare_db():
-        with sqlite3.connect("prachy.db") as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS payments (
-                    payment_id INTEGER PRIMARY KEY,
-                    customer_id INTEGER NOT NULL,
-                    stamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    description TEXT,
-                    balance_change INTEGER NOT NULL
-                );
-            """)
-            
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS orders (
-                    order_id INTEGER PRIMARY KEY,
-                    payment_id INTEGER NOT NULL,
-                    item_name TEXT,
-                    item_cost INTEGER NOT NULL,
-                    count INTEGER INTEGER NOT NULL,
-                    cost_total INTEGER GENERATED ALWAYS AS (item_cost*count),
-                    
-                    FOREIGN KEY (payment_id) REFERENCES payments(payment_id) ON DELETE CASCADE
-                );
-            """)
-            
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS customers (
-                    customer_id INTEGER PRIMARY KEY,
-                    nickname TEXT
-                );
-            """)
-            conn.commit()
-            
+
 
 class MainPage(tk.Frame):
     def __init__(self, root):
@@ -312,8 +193,8 @@ class EditProfile(tk.Frame):
             return
         
         self.input_funds.delete(0, "end")
-        add_funds(self.customer_num, value_add)
-        self.money_label["text"] = get_money(self.customer_num)
+        dbutils.add_funds(self.customer_num, value_add)
+        self.money_label["text"] = dbutils.get_money(self.customer_num)
         self.load_old_orders()
         
     def remove_funds_button_callback(self):
@@ -328,8 +209,8 @@ class EditProfile(tk.Frame):
             return
         
         self.input_remove_funds.delete(0, "end")
-        remove_funds(self.customer_num, value)
-        self.money_label["text"] = get_money(self.customer_num)
+        dbutils.remove_funds(self.customer_num, value)
+        self.money_label["text"] = dbutils.get_money(self.customer_num)
         self.load_old_orders()
 
     
@@ -337,7 +218,7 @@ class EditProfile(tk.Frame):
         self.return_to = return_to
         self.customer_num = customer_num
         self.customer_label["text"] = customer_num
-        self.money_label["text"] = get_money(customer_num)
+        self.money_label["text"] = dbutils.get_money(customer_num)
         self.load_old_orders()
         
         self.focus_set()
@@ -363,7 +244,7 @@ class EditProfile(tk.Frame):
         self.order_history['state'] = 'normal'
         self.order_history.delete("1.0", "end")
         
-        payments = get_payment_list(self.customer_num)
+        payments = dbutils.get_payment_list(self.customer_num)
         total = 0
         
         for payment in payments:
@@ -462,14 +343,14 @@ class Order(tk.Frame):
             self.bell()
             return
     
-        money = get_money(self.customer_num)
+        money = dbutils.get_money(self.customer_num)
         total = sum((x*y for x,y in self.orders.items()))
         
         mbox_text = "Zákazník si objednal za více, než kolik má nabito.\nChcete pokračovat v platbě? (Zákazníkovi se tím vytvoří dluh)"
         if total > money and not tkmessagebox.askyesno(title="Poračovat na dluh", message=mbox_text):
             return
         
-        save_order(self.customer_num, self.orders)
+        dbutils.save_order(self.customer_num, self.orders)
         self.clear()
         self.app.open_frame("MainPage")
     
@@ -486,13 +367,13 @@ class Order(tk.Frame):
         self.redraw_orders()
     
     def returned_back(self, from_page):
-        self.money_label["text"] = get_money(self.customer_num)
+        self.money_label["text"] = dbutils.get_money(self.customer_num)
         self.focus_set()
     
     def setup(self, num, old_order=False):
         self.customer_num = num
         self.customer_label["text"] = self.customer_num
-        self.money_label["text"] = get_money(self.customer_num)
+        self.money_label["text"] = dbutils.get_money(self.customer_num)
         
         self.old_orders = ""
         
