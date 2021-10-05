@@ -1,0 +1,6 @@
+**/__pycache__
+build
+dist
+config.json
+*.db
+last_run.log
