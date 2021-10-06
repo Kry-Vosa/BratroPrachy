@@ -241,7 +241,9 @@ class EditProfile(tk.Frame):
         if not cancel:
             return
         
-        
+        dbutils.delete_payment(order_id)
+        self.money_label["text"] = dbutils.get_money(self.customer_num)
+        self.load_old_orders()
         
     def load_old_orders(self):
         self.order_history['state'] = 'normal'
@@ -262,7 +264,7 @@ class EditProfile(tk.Frame):
                 
             button = tk.Button(self.order_history, text="X", cursor="left_ptr",
                        bd=0, bg=self.order_history["bg"], fg="#a60000", highlightthickness=0,
-                       command = lambda: self.delete_order(pay_id))
+                       command = lambda pay_id=pay_id: self.delete_order(pay_id))
                        
             self.order_history.insert("end", stamp)
             self.order_history.window_create("end", window = button)
@@ -365,8 +367,9 @@ class Order(tk.Frame):
         self.money_label["text"] = "-"
         self.customer_num = -1
         self.orders = {}
-        self.old_order_id = -1
-        self.old_orders = ""
+        self.money = 0
+        #self.old_order_id = -1
+        #self.old_orders = ""
         self.redraw_orders()
     
     def returned_back(self, from_page):
@@ -375,20 +378,48 @@ class Order(tk.Frame):
     
     def setup(self, num, old_order=False):
         self.customer_num = num
+        self.money = dbutils.get_money(self.customer_num)
         self.customer_label["text"] = self.customer_num
-        self.money_label["text"] = dbutils.get_money(self.customer_num)
+        self.money_label["text"] = self.money
         
-        self.old_orders = ""
+        #This is yet unused
+        #self.old_orders = ""
+        
+        self.redraw_orders()
         
         self.focus_set()
     
+    def remove_order(self, name):
+        count = self.orders.get(name, 0) - 1
+        if(count < 1):
+            self.orders.pop(name)
+        else:
+            self.orders[name] = count
+        self.redraw_orders()
+        
+        
     def redraw_orders(self):
-        total = sum((x*y for x,y in self.orders.items()))
-        text = '\n'.join(("%s\t\t%sx" % (val, num) for val, num in sorted(self.orders.items())))
         self.prep_area['state'] = 'normal'
         self.prep_area.delete("1.0", "end")
-        self.prep_area.insert("1.0", self.old_orders + "Věci v objednávce:\n"+text+"\n-------------------\nCelkem: "+str(total))
+        
+        total = sum((x*y for x,y in self.orders.items()))
+        
+        self.prep_area.insert("end","Věci v objednávce:\n")
+        
+        for val, num in sorted(self.orders.items()):
+            text = "%s\t\t%sx     " % (val, num)
+            self.prep_area.insert("end", text)
+            button = tk.Button(self.prep_area, text="x", cursor="left_ptr",
+                       bd=0, bg=self.prep_area["bg"], fg="#a60000", highlightthickness=0,
+                       command = lambda val=val: self.remove_order(val))
+            self.prep_area.window_create("end", window = button)
+            self.prep_area.insert("end", "\n")
+                       
+            
+        self.prep_area.insert("end", "-------------------\nCelkem: "+str(total)+"\nZůstatek: "+str(self.money-total))
+        
         self.prep_area['state'] = 'disabled'
+        self.prep_area.see('end')
     
     
     def price_button_callback(self, value):
