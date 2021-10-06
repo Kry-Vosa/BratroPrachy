@@ -119,18 +119,8 @@ class EditProfile(tk.Frame):
         
         button_font = tkFont.Font(family='Arial', size=22, weight="bold")
         
-        info_area = tk.Frame(self)
+        info_area = self.info_area = CutomerTopPanel(self)
         info_area.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
-        info_label = tk.Label(info_area, text="Zákazník:", font=button_font)
-        info_label.pack(side="left")
-        customer_label = self.customer_label = tk.Label(info_area, text="-", font=button_font)
-        customer_label.pack(side="left")
-
-        czk_label = tk.Label(info_area, text="Kč", font=button_font)
-        czk_label.pack(side="right")
-        money_label = self.money_label = tk.Label(info_area, text="-", font=button_font)
-        money_label.pack(side="right")
-        
         
         order_history = self.order_history = tkscrolledtext.ScrolledText(self, width=30, borderwidth=0, highlightthickness=0, state="disabled", font=tkFont.Font(family='Courier', size=22))
         order_history.grid(row=1, column=1, sticky="nsew")
@@ -191,13 +181,9 @@ class EditProfile(tk.Frame):
             return
         value_add = int(value_add)
         
-        cancel = tkmessagebox.askyesno(title="Nabít kredit", message="Opravdu chcete nabít účet hodnotou "+str(value_add)+ "?")
-        if not cancel:
-            return
-        
         self.input_funds.delete(0, "end")
         dbutils.add_funds(self.customer_num, value_add)
-        self.money_label["text"] = dbutils.get_money(self.customer_num)
+        self.info_area.set_money(dbutils.get_money(self.customer_num))
         self.load_old_orders()
         
     def remove_funds_button_callback(self):
@@ -213,22 +199,21 @@ class EditProfile(tk.Frame):
         
         self.input_remove_funds.delete(0, "end")
         dbutils.remove_funds(self.customer_num, value)
-        self.money_label["text"] = dbutils.get_money(self.customer_num)
+        self.info_area.set_money(dbutils.get_money(self.customer_num))
         self.load_old_orders()
 
     
     def setup(self, customer_num, return_to=None):
         self.return_to = return_to
         self.customer_num = customer_num
-        self.customer_label["text"] = customer_num
-        self.money_label["text"] = dbutils.get_money(customer_num)
+        self.info_area.set_customer(customer_num)
+        self.info_area.set_money(dbutils.get_money(customer_num))
         self.load_old_orders()
         
         self.focus_set()
     
     def clear(self):
-        self.customer_label["text"] = "-";
-        self.money_label["text"] = "-"
+        self.info_area.clear()
         self.customer_num = 0
         self.input_funds.delete(0, "end")
         
@@ -281,6 +266,7 @@ class EditProfile(tk.Frame):
         self.order_history['state'] = 'disabled'
         self.order_history.see('end')
 
+
 class Order(tk.Frame):
     def __init__(self, root, buttons):
         self.app = root;
@@ -288,18 +274,8 @@ class Order(tk.Frame):
         
         button_font = tkFont.Font(family='Arial', size=22, weight="bold")
         
-        info_area = tk.Frame(self)
-        info_area.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="we")
-        info_label = tk.Label(info_area, text="Zákazník:", font=button_font)
-        info_label.pack(side="left")
-        customer_label = self.customer_label = tk.Label(info_area, text="-", font=button_font)
-        customer_label.pack(side="left")
-
-        czk_label = tk.Label(info_area, text="Kč", font=button_font)
-        czk_label.pack(side="right")
-        money_label = self.money_label = tk.Label(info_area, text="-", font=button_font)
-        money_label.pack(side="right")
-        
+        info_area = self.info_area = CutomerTopPanel(self)
+        info_area.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
         
         button_area = AutoGrid(self)
         button_area.grid(row=1, column=0, sticky='nsew')
@@ -351,7 +327,7 @@ class Order(tk.Frame):
         money = dbutils.get_money(self.customer_num)
         total = sum((x*y for x,y in self.orders.items()))
         
-        mbox_text = "Zákazník si objednal za více, než kolik má nabito.\nChcete pokračovat v platbě? (Zákazníkovi se tím vytvoří dluh)"
+        mbox_text = "Zákazník si objednal za více, než kolik má nabito.\n Chcete pokračovat v platbě? (Zákazníkovi se tím vytvoří dluh)"
         if total > money and not tkmessagebox.askyesno(title="Poračovat na dluh", message=mbox_text):
             return
         
@@ -363,8 +339,7 @@ class Order(tk.Frame):
         self.app.open_frame("EditProfile", self.customer_num, return_to="Order")
     
     def clear(self):
-        self.customer_label["text"] = "-";
-        self.money_label["text"] = "-"
+        self.info_area.clear();
         self.customer_num = -1
         self.orders = {}
         self.money = 0
@@ -373,14 +348,14 @@ class Order(tk.Frame):
         self.redraw_orders()
     
     def returned_back(self, from_page):
-        self.money_label["text"] = dbutils.get_money(self.customer_num)
+        self.info_area.set_money(dbutils.get_money(self.customer_num))
         self.focus_set()
     
     def setup(self, num, old_order=False):
         self.customer_num = num
         self.money = dbutils.get_money(self.customer_num)
-        self.customer_label["text"] = self.customer_num
-        self.money_label["text"] = self.money
+        self.info_area.set_customer(self.customer_num)
+        self.info_area.set_money(self.money)
         
         #This is yet unused
         #self.old_orders = ""
@@ -440,7 +415,36 @@ class Order(tk.Frame):
         price_button["relief"] = "raised"
         price_button["command"] = lambda: self.price_button_callback(price)
         return button_frame
-     
+
+class CutomerTopPanel(tk.Frame):
+    def __init__(self, root):
+        tk.Frame.__init__(self, root)
+        
+        button_font = tkFont.Font(family='Arial', size=22, weight="bold")
+        
+        info_label = tk.Label(self, text="Zákazník:", font=button_font)
+        info_label.pack(side="left")
+        customer_label = self.customer_label = tk.Label(self, text="-", font=button_font)
+        customer_label.pack(side="left")
+
+
+        czk_label = tk.Label(self, text="Kč", font=button_font)
+        czk_label.pack(side="right")
+        money_label = self.money_label = tk.Label(self, text="-", font=button_font)
+        money_label.pack(side="right")
+        kredit_label = tk.Label(self, text="Kredit:", font=button_font)
+        kredit_label.pack(side="right")
+        
+    def set_customer(self, text):
+        self.customer_label["text"] = text;
+    
+    def set_money(self, text):
+        self.money_label["text"] = text;
+        
+    def clear(self):
+        self.customer_label["text"] = "-";
+        self.money_label["text"] = "-";
+
 class AutoGrid(tk.Frame):
     def __init__(self, root=None, **kwargs):
         tk.Frame.__init__(self, root, **kwargs)
