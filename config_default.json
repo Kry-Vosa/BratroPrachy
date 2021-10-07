@@ -1,10 +1,40 @@
 {
   "buttons": [
-    [ -50, "#FFAAFF"],
-    [10, "#9c91ff"],
-    [19, "#f2cc63"],
-    [27, "#8ecde6"],
-    [59, "#8ee6cb"],
-    [85, "#c6e68e"]
-  ]
+    {
+      "value": -50,
+      "text": "Vrácený\nkelímek",
+      "color": "#d7ff9c"
+    },
+    {
+      "value": 50,
+      "text": "Kelímek",
+      "color": "#9cd1ff"
+    },
+    {
+      "value": 8,
+      "text": "Mléko\ndo kafe",
+      "color": "#F8F8F8"
+    },
+    {
+      "value": 50,
+      "text": "Tvrdý 1",
+      "color": "#fac0f3"
+    },
+    {
+      "value": 68,
+      "text": "Tvrdý 2",
+      "color": "#e4c0fa"
+    },
+    {
+      "value": 70,
+      "text": "Utopenec",
+      "color": "#ffebab"
+    },
+    {
+      "value": 110
+    }
+  ],
+  
+  "button.size": 200,
+  "button.spacing": 16
 }
