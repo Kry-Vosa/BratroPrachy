@@ -241,7 +241,7 @@ class EditProfile(tk.Frame):
             return
         
         dbutils.delete_payment(order_id)
-        self.money_label["text"] = dbutils.get_money(self.customer_num)
+        self.info_area.set_money(dbutils.get_money(self.customer_num))
         self.load_old_orders()
         
     def load_old_orders(self):
