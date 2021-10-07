@@ -2,8 +2,9 @@ import tkinter as tk
 import tkinter.messagebox as tkmessagebox
 import tkinter.scrolledtext as tkscrolledtext
 import tkinter.font as tkFont
-import sqlite3, json, sys
-import dbutils
+import sqlite3, json, sys, dbutils
+from config import schema
+from cerberus import Validator
 
 def only4Num(inStr, acttyp):
     if acttyp == '1': #insert
@@ -21,11 +22,31 @@ class App(tk.Tk):
         self.wm_geometry("800x600")
         self.state('zoomed')
         
+        self.config = {}
+        try:
+            with open("./config.json", encoding="utf-8") as infil:
+                self.config = json.load(infil)
+        except Exception as ex:
+            print(ex)
+            tkmessagebox.showerror(title="Chyba v nastavení", message="Při načítání config.json se objevila nějaká chyba\nZkontrolujte, že je všechno tak, jak má být.")
+            sys.exit()
+        
+        # validate config
+        val = Validator(schema)
+        if not val.validate(self.config):
+            tkmessagebox.showerror(title="Chyba v nastavení", message="Při načítání config.json se objevily chyby:\n" + str(val.errors)[:1024])
+            sys.exit()
+        
+        self.config = val.normalized(self.config)
+        
+        print(self.config)
+        
         dbutils.prepare_db()
+        
         
         self.frames = {
             "MainPage": MainPage(self),
-            "Order": Order(self, buttons=self.load_price_buttons()),
+            "Order": Order(self),
             "EditProfile": EditProfile(self),
         }
         
@@ -33,7 +54,9 @@ class App(tk.Tk):
             frame.place(x=0, y=0, relwidth=1, relheight=1)
         
         self.open_frame("MainPage")
-        
+    
+
+    
     def open_frame(self, name, *args, returned_from=False, **kwargs):
         frame = self.frames[name];
         if returned_from:
@@ -42,15 +65,6 @@ class App(tk.Tk):
             ret = frame.setup(*args, **kwargs)
         if ret is not False:
             frame.tkraise()
-    
-    def load_price_buttons(self):
-        try:
-            with open("./config.json") as infil:
-                return json.load(infil)["buttons"]
-        except Exception as ex:
-            print(ex)
-            tkmessagebox.showerror(title="Chyba v nastavení", message="Při načítání config.json se objevila nějaká chyba\nZkontrolujte, že je všechno tak, jak má být.")
-            sys.exit()
 
 
 class MainPage(tk.Frame):
@@ -268,11 +282,11 @@ class EditProfile(tk.Frame):
 
 
 class Order(tk.Frame):
-    def __init__(self, root, buttons):
+    def __init__(self, root):
         self.app = root;
         tk.Frame.__init__(self, root)
         
-        button_font = tkFont.Font(family='Arial', size=22, weight="bold")
+        button_font = tkFont.Font(family='Arial', size=24, weight="bold")
         
         info_area = self.info_area = CutomerTopPanel(self)
         info_area.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
@@ -280,11 +294,11 @@ class Order(tk.Frame):
         button_area = AutoGrid(self)
         button_area.grid(row=1, column=0, sticky='nsew')
         
-        for i, (price, color) in enumerate(buttons):
-            button=self.create_price_button(button_area, color, price)
+        for i, settings in enumerate(self.app.config["buttons"]):
+            button=self.create_price_button(button_area, settings["color"], settings["value"], settings.get("text", None))
             button.grid()
 
-        prep_area = self.prep_area = tk.Text(self, width=25, borderwidth=0, highlightthickness=0, state="disabled", font=tkFont.Font(family='Courier', size=22));
+        prep_area = self.prep_area = tk.Text(self, width=28, borderwidth=0, highlightthickness=0, state="disabled", font=tkFont.Font(family='Courier', size=22));
         prep_area.grid(row=1, column=1, sticky='sn')
         
         finish_area = tk.Frame(self)
@@ -325,7 +339,7 @@ class Order(tk.Frame):
             return
     
         money = dbutils.get_money(self.customer_num)
-        total = sum((x*y for x,y in self.orders.items()))
+        total = sum((x*y for (_, x),y in self.orders.items()))
         
         mbox_text = "Zákazník si objednal za více, než kolik má nabito.\n Chcete pokračovat v platbě? (Zákazníkovi se tím vytvoří dluh)"
         if total > money and not tkmessagebox.askyesno(title="Poračovat na dluh", message=mbox_text):
@@ -364,12 +378,12 @@ class Order(tk.Frame):
         
         self.focus_set()
     
-    def remove_order(self, name):
-        count = self.orders.get(name, 0) - 1
+    def remove_item(self, key):
+        count = self.orders.get(key, 0) - 1
         if(count < 1):
-            self.orders.pop(name)
+            self.orders.pop(key)
         else:
-            self.orders[name] = count
+            self.orders[key] = count
         self.redraw_orders()
         
         
@@ -377,16 +391,20 @@ class Order(tk.Frame):
         self.prep_area['state'] = 'normal'
         self.prep_area.delete("1.0", "end")
         
-        total = sum((x*y for x,y in self.orders.items()))
+        total = sum((x*y for (_,x),y in self.orders.items()))
         
         self.prep_area.insert("end","Věci v objednávce:\n")
         
-        for val, num in sorted(self.orders.items()):
-            text = "%s\t\t%sx     " % (val, num)
+        for (name, val), num in sorted(self.orders.items()):
+            key = (name, val)
+            name = name.replace("\n", " ")
+            if len(name) > 17:
+                name = name[:10]+"..."
+            text = f'{name:<17}{val:>4}{num:>3}x '
             self.prep_area.insert("end", text)
             button = tk.Button(self.prep_area, text="x", cursor="left_ptr",
                        bd=0, bg=self.prep_area["bg"], fg="#a60000", highlightthickness=0,
-                       command = lambda val=val: self.remove_order(val))
+                       command = lambda key=key: self.remove_item(key))
             self.prep_area.window_create("end", window = button)
             self.prep_area.insert("end", "\n")
                        
@@ -397,23 +415,32 @@ class Order(tk.Frame):
         self.prep_area.see('end')
     
     
-    def price_button_callback(self, value):
-        self.orders[value] = self.orders.get(value, 0) + 1
+    def price_button_callback(self, name, value):
+        key = (name, value)
+        self.orders[key] = self.orders.get(key, 0) + 1
         self.redraw_orders()
 
-    def create_price_button(self, root, color, price):
-        butt_size = 200
-        button_frame = tk.Frame(root, height=butt_size, width=butt_size)
+    def create_price_button(self, root, color, price, text=None):
+        spacing = int(self.app.config["button.spacing"] / 2)
+        butt_size = self.app.config["button.size"] 
+        all_size = butt_size + spacing * 2;
+        if text is None:
+            font_size = 37
+            text = str(price)
+        else:
+            font_size = 20
+        
+        button_frame = tk.Frame(root, height=all_size, width=all_size)
         price_button=tk.Button(button_frame)
-        price_button.place(x=8, y=8, width=butt_size-16, height=butt_size-16)
+        price_button.place(x=spacing, y=spacing, width=butt_size, height=butt_size)
         price_button["anchor"] = "center"
         price_button["bg"] = color
-        price_button["font"] = tkFont.Font(family='Arial',size=37, weight="bold")
+        price_button["font"] = tkFont.Font(family='Arial',size=font_size, weight="bold")
         price_button["fg"] = "#000000"
         price_button["justify"] = "center"
-        price_button["text"] = str(price)
+        price_button["text"] = text
         price_button["relief"] = "raised"
-        price_button["command"] = lambda: self.price_button_callback(price)
+        price_button["command"] = lambda: self.price_button_callback(text, price)
         return button_frame
 
 class CutomerTopPanel(tk.Frame):

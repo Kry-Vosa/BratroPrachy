@@ -56,7 +56,7 @@ def save_order(customer_id, order):
         payment_id = cur.lastrowid
         cur.executemany("""
             INSERT INTO orders (payment_id, item_name, item_cost, count) VALUES (?, ?, ?, ?)
-        """, [(payment_id, val, val, count) for val, count in order.items()])
+        """, [(payment_id, name, val, count) for (name, val), count in order.items()])
         
         cur.execute("""
             UPDATE payments SET balance_change = -1 * (SELECT SUM(cost_total) FROM orders WHERE payment_id = ?) WHERE payment_id = ?
