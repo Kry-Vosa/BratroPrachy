@@ -2,7 +2,7 @@ import tkinter as tk
 import tkinter.messagebox as tkmessagebox
 import tkinter.scrolledtext as tkscrolledtext
 import tkinter.font as tkFont
-import sqlite3, json, sys, dbutils
+import sqlite3, json, sys, dbutils, os, os.path
 from config import schema
 from cerberus import Validator
 
@@ -21,6 +21,7 @@ class App(tk.Tk):
         self.title("Endurova kalkulačka peněz")
         self.wm_geometry("800x600")
         self.state('zoomed')
+        self.iconbitmap(self.resource_path("icon.ico"))
         
         self.config = {}
         try:
@@ -65,7 +66,17 @@ class App(tk.Tk):
             ret = frame.setup(*args, **kwargs)
         if ret is not False:
             frame.tkraise()
+    
+    @staticmethod
+    def resource_path(relative_path):
+        """ Get absolute path to resource, works for dev and for PyInstaller """
+        try:
+            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.abspath("./src/resources/")
 
+        return os.path.join(base_path, relative_path)
 
 class MainPage(tk.Frame):
     def __init__(self, root):
