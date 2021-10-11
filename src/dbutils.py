@@ -1,7 +1,7 @@
 import sqlite3
 
 APP_NAME = "BratroPrachy"
-DB_VERSION = '1'
+DB_VERSION = '2'
 
 def get_version(cur):
     """return version number as a str if version was found or None if not"""
@@ -64,7 +64,9 @@ def create_db_newest(cur):
     cur.execute("""
         CREATE TABLE IF NOT EXISTS customers (
             customer_id INTEGER PRIMARY KEY,
-            nickname TEXT
+            nickname TEXT,
+            first_name TEXT,
+            last_name TEXT
         );
     """)
     
@@ -82,14 +84,25 @@ def create_db_newest(cur):
     """, (APP_NAME, DB_VERSION))
 
 def upgrade_db(cur, from_version):
-
+    
+    # makes simple upgrades easier to write
+    def create_from_sql(expr, ret):
+        def new_func(cur):
+            if isinstance(expr, str):
+                cur.execute(expr)
+            else: 
+                for exp in expr:
+                    cur.execute(exp)
+            return ret
+        return new_func
     upgrades = {
         #key is version to upgrade from, function returns version it upgraded to. This will allow to add "jump" upgrade functions if upgardes would take too much time
-        #"1": lambda _: return "2",
+        '1': create_from_sql(["ALTER TABLE customers ADD COLUMN first_name TEXT;", 'ALTER TABLE customers ADD COLUMN last_name TEXT;'], '2')
     }
     
     while from_version != DB_VERSION:
         from_version=upgrades[from_version](cur)
+        cur.execute("UPDATE db_info SET value = ? WHERE key='version'", (from_version,))
 
 def prepare_db():
     with sqlite3.connect("prachy.db") as conn:
