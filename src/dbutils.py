@@ -131,6 +131,19 @@ def get_money(customer_id):
         if not ret:
             return 0
         return ret
+        
+def get_export():
+    with sqlite3.connect("prachy.db") as conn:
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT payments.customer_id, first_name, last_name, nickname, SUM(balance_change) AS balance FROM payments
+              LEFT JOIN customers ON customers.customer_id = payments.customer_id
+              GROUP BY payments.customer_id
+              HAVING balance != 0 OR COALESCE(first_name, last_name, nickname) IS NOT NULL
+              ORDER BY payments.customer_id ASC;
+        """)
+        return cur.fetchall();
 
 def save_order(customer_id, order):
     with sqlite3.connect("prachy.db") as conn:

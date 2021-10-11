@@ -1,8 +1,9 @@
 import tkinter as tk
 import tkinter.messagebox as tkmessagebox
 import tkinter.scrolledtext as tkscrolledtext
+import tkinter.filedialog as tkfiledialog
 import tkinter.font as tkFont
-import sqlite3, json, sys, dbutils, os, os.path, traceback
+import sqlite3, json, sys, dbutils, os, os.path, traceback, csv
 from config import schema
 from cerberus import Validator
 
@@ -44,7 +45,7 @@ class App(tk.Tk):
             dbutils.prepare_db()
         except Exception as ex:
             traceback.print_exc()
-            tkmessagebox.showerror(title="Chyba v databázo", message="Při načítání nebo vytváření prachy.db se objevila chyba:\n"+str(ex))
+            tkmessagebox.showerror(title="Chyba v databázi", message="Při načítání nebo vytváření prachy.db se objevila chyba:\n"+str(ex))
             sys.exit()
         
         self.frames = {
@@ -87,14 +88,17 @@ class MainPage(tk.Frame):
         
         button_font = tkFont.Font(family='Arial', size=22, weight="bold")
         
-        menu_frame = tk.Frame(self, bg="red")
-        menu_frame.grid(row=0, column=0, columnspan=2, sticky="ew")
+        menu_frame = tk.Frame(self)
+        menu_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=5)
         
         """payment_button = tk.Button(menu_frame, text="Opravit poslední\nobjednávku", bg="#a3ffb3")
         payment_button.pack(side="left", fill="y", expand=True)
         
         payment_button = tk.Button(menu_frame, text="Zazálohovat", bg="#a3ffb3")
         payment_button.pack(side="left", fill="y", expand=True)"""
+        
+        db_export_button = tk.Button(menu_frame, text="Export DB", bg="#a3ffb3", command=self.db_export_callback)
+        db_export_button.pack(side="left", fill="y", expand=True)
         
         tk.Label(self, text="Číslo:", font=button_font)\
           .grid(row=2, column=0, sticky="es")
@@ -117,6 +121,21 @@ class MainPage(tk.Frame):
         self.grid_rowconfigure(3, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
+        
+    def db_export_callback(self):
+        file = tkfiledialog.asksaveasfilename(filetypes=[("CSV tabulka", "*.csv")], initialfile="db_export.csv")
+        self.config(cursor="wait")
+        self.update()
+        try: 
+            with open(file, mode="w", newline='', encoding="utf-8") as outfil:
+                writer = csv.writer(outfil)
+                writer.writerow(["Číslo", "Jméno", "Příjmení", "Přezdívka", "Kredit"])
+                writer.writerows(dbutils.get_export())
+        except OSError as ex:
+            tkinter.messagebox.showerror(title="Chyba při ukládání souboru", message="Soubor se nepodařilo správně uložit.", **options)
+            
+        self.config(cursor="")
+        self.update()
     
     def open_order(self):
         if not self.input_number.get():
