@@ -2,7 +2,7 @@ import tkinter as tk
 import tkinter.messagebox as tkmessagebox
 import tkinter.scrolledtext as tkscrolledtext
 import tkinter.font as tkFont
-import sqlite3, json, sys, dbutils, os, os.path
+import sqlite3, json, sys, dbutils, os, os.path, traceback
 from config import schema
 from cerberus import Validator
 
@@ -28,7 +28,7 @@ class App(tk.Tk):
             with open("./config.json", encoding="utf-8") as infil:
                 self.config = json.load(infil)
         except Exception as ex:
-            print(ex)
+            traceback.print_exc()
             tkmessagebox.showerror(title="Chyba v nastavení", message="Při načítání config.json se objevila nějaká chyba\nZkontrolujte, že je všechno tak, jak má být.")
             sys.exit()
         
@@ -40,10 +40,12 @@ class App(tk.Tk):
         
         self.config = val.normalized(self.config)
         
-        print(self.config)
-        
-        dbutils.prepare_db()
-        
+        try:
+            dbutils.prepare_db()
+        except Exception as ex:
+            traceback.print_exc()
+            tkmessagebox.showerror(title="Chyba v databázo", message="Při načítání nebo vytváření prachy.db se objevila chyba:\n"+str(ex))
+            sys.exit()
         
         self.frames = {
             "MainPage": MainPage(self),

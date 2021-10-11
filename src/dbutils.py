@@ -1,9 +1,44 @@
 import sqlite3
 
-def prepare_db():
-    with sqlite3.connect("prachy.db") as conn:
-        cur = conn.cursor()
-        cur.execute("""
+APP_NAME = "BratroPrachy"
+DB_VERSION = '1'
+
+def get_version(cur):
+    """return version number as a str if version was found or None if not"""
+    
+    #Check if the info table exists
+    cur.execute("""
+        SELECT count(*) FROM sqlite_master WHERE type='table' AND name='db_info';
+    """)
+    try_version = cur.fetchone()[0]
+    
+    #It doesn't, this might not be our db
+    if not try_version:
+        return None
+        
+    cur.execute("""
+        SELECT key, value FROM db_info WHERE key IN ('version', 'app_name');
+    """)
+    
+    db_info = dict(cur.fetchall())
+    
+    #Not correct data from db_info, something's fishy
+    if db_info.get("app_name", None) != APP_NAME:
+        return None
+        
+    return db_info.get("version", None)
+
+def check_is_fresh(cur):
+    """Returns true if the database is completely empty"""
+
+    cur.execute("""
+        SELECT count(*) FROM sqlite_master
+    """)
+    
+    return cur.fetchone()[0] < 1
+
+def create_db_newest(cur):
+    cur.execute("""
             CREATE TABLE IF NOT EXISTS payments (
                 payment_id INTEGER PRIMARY KEY,
                 customer_id INTEGER NOT NULL,
@@ -13,25 +48,63 @@ def prepare_db():
             );
         """)
         
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS orders (
-                order_id INTEGER PRIMARY KEY,
-                payment_id INTEGER NOT NULL,
-                item_name TEXT,
-                item_cost INTEGER NOT NULL,
-                count INTEGER INTEGER NOT NULL,
-                cost_total INTEGER GENERATED ALWAYS AS (item_cost*count),
-                
-                FOREIGN KEY (payment_id) REFERENCES payments(payment_id) ON DELETE CASCADE
-            );
-        """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS orders (
+            order_id INTEGER PRIMARY KEY,
+            payment_id INTEGER NOT NULL,
+            item_name TEXT,
+            item_cost INTEGER NOT NULL,
+            count INTEGER INTEGER NOT NULL,
+            cost_total INTEGER GENERATED ALWAYS AS (item_cost*count),
+            
+            FOREIGN KEY (payment_id) REFERENCES payments(payment_id) ON DELETE CASCADE
+        );
+    """)
+    
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS customers (
+            customer_id INTEGER PRIMARY KEY,
+            nickname TEXT
+        );
+    """)
+    
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS db_info (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        );
+    """)
+    
+    cur.execute("""
+        INSERT INTO db_info (key, value) VALUES
+            ('app_name', ?),
+            ('version', ?);
+    """, (APP_NAME, DB_VERSION))
+
+def upgrade_db(cur, from_version):
+
+    upgrades = {
+        #key is version to upgrade from, function returns version it upgraded to. This will allow to add "jump" upgrade functions if upgardes would take too much time
+        #"1": lambda _: return "2",
+    }
+    
+    while from_version != DB_VERSION:
+        from_version=upgrades[from_version](cur)
+
+def prepare_db():
+    with sqlite3.connect("prachy.db") as conn:
+        cur = conn.cursor()
         
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS customers (
-                customer_id INTEGER PRIMARY KEY,
-                nickname TEXT
-            );
-        """)
+        version = get_version(cur)
+        
+        if not version:
+            if check_is_fresh(cur):
+                create_db_newest(cur)
+            else:
+                raise Exception("Neidentifikovatelná databáze! Možná špatný .db soubor?")
+        else:
+            upgrade_db(cur, version)
+    
         conn.commit()
 
 def get_money(customer_id):
