@@ -2,6 +2,7 @@ import tkinter as tk
 import tkinter.messagebox as tkmessagebox
 import tkinter.scrolledtext as tkscrolledtext
 import tkinter.filedialog as tkfiledialog
+import tkinter.simpledialog as tksimpledialog
 import tkinter.font as tkfont
 import sqlite3, json, sys, dbutils, os, os.path, traceback, csv
 from config import schema
@@ -341,8 +342,14 @@ class Order(tk.Frame):
         cancel_button.pack(side="left")
         self.bind('<Escape>', lambda _: self.cancel_button_callback())
         
-        profile_button = tk.Button(finish_area, text="Profil", bg="#fffb80", command=self.profile_button_callback)
-        profile_button.pack()
+        center_buttons = tk.Frame(finish_area)
+        center_buttons.pack()
+        
+        add_funds_button = tk.Button(center_buttons, text="Nabít kredit", bg="#fffb80", font="BPThicc", command=self.add_funds_button_callback)
+        add_funds_button.pack(side="left")
+        profile_button = tk.Button(center_buttons, text="Profil", bg="#fffb80", font="BPThicc", command=self.profile_button_callback)
+        profile_button.pack(side="left", padx=5)
+        
         
         
         
@@ -382,6 +389,15 @@ class Order(tk.Frame):
     
     def profile_button_callback(self):
         self.app.open_frame("EditProfile", self.customer_num, return_to="Order")
+        dbutils.add_funds(self.customer_num, value_add)
+    
+    def add_funds_button_callback(self):
+        value = tksimpledialog.askinteger(title="Nabít kredit", prompt="Zadejte, jakou hodnotou chcete nabít kredit:")
+        if not value:
+            return
+        
+        dbutils.add_funds(self.customer_num, value)
+        self.setup_money()
     
     def clear(self):
         self.info_area.clear();
@@ -393,22 +409,25 @@ class Order(tk.Frame):
         self.redraw_orders()
     
     def returned_back(self, from_page):
-        self.info_area.set_money(dbutils.get_money(self.customer_num))
+        self.setup_money()
         self.focus_set()
     
     def setup(self, num, old_order=False):
         self.customer_num = num
-        self.money = dbutils.get_money(self.customer_num)
         self.info_area.set_customer(self.customer_num)
-        self.info_area.set_money(self.money)
         
         #This is yet unused
         #self.old_orders = ""
         
-        self.redraw_orders()
+        self.setup_money()
         
         self.focus_set()
-    
+        
+    def setup_money(self):
+        self.money = dbutils.get_money(self.customer_num)
+        self.info_area.set_money(self.money)
+        self.redraw_orders()
+        
     def remove_item(self, key):
         count = self.orders.get(key, 0) - 1
         if(count < 1):
