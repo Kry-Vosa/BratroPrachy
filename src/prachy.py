@@ -176,6 +176,29 @@ class EditProfile(tk.Frame):
         main_area = tk.Frame(self)
         main_area.grid(row=1, column=0, sticky="nsew", padx=5, pady=15)
         
+        user_info_frame = tk.Frame(main_area)
+        
+        tk.Label(user_info_frame, text="Jméno:", font="BPThicc")\
+          .grid(row=1, column=1, sticky="w")
+        input_first_name = self.input_first_name = tk.Entry(user_info_frame, font="BPThicc", width=23)
+        input_first_name.grid(row=1, column=2, sticky="w")
+        
+        tk.Label(user_info_frame, text="Příjmení:", font="BPThicc")\
+          .grid(row=2, column=1, sticky="w")
+        input_last_name = self.input_last_name = tk.Entry(user_info_frame, font="BPThicc", width=23)
+        input_last_name.grid(row=2, column=2)
+        
+        tk.Label(user_info_frame, text="Přezdívka:", font="BPThicc")\
+          .grid(row=3, column=1, sticky="w")
+        input_nickname = self.input_nickname = tk.Entry(user_info_frame, font="BPThicc", width=23)
+        input_nickname.grid(row=3, column=2)
+        
+        save_user_info_button = tk.Button(user_info_frame, text="Uložit", bg="#a3ffb3", command=self.save_user_info_button_callback)
+        save_user_info_button.grid(row=99, column=1, columnspan=2, sticky="e")
+        
+        user_info_frame.pack(fill="x", expand=True)
+        
+        
         add_funds_frame = tk.Frame(main_area)
         tk.Label(add_funds_frame, text="Nabití kreditu:", font="BPThicc")\
           .pack(side="left", )
@@ -250,20 +273,35 @@ class EditProfile(tk.Frame):
         self.info_area.set_money(dbutils.get_money(self.customer_num))
         self.load_old_orders()
 
+    def save_user_info_button_callback(self):
+        dbutils.save_info(self.customer_num,
+                          self.input_first_name.get(),
+                          self.input_last_name.get(),
+                          self.input_nickname.get())
+        
+        self.info_area.set_customer(dbutils.get_info(self.customer_num))
     
     def setup(self, customer_num, return_to=None):
         self.return_to = return_to
         self.customer_num = customer_num
-        self.info_area.set_customer(customer_num)
-        self.info_area.set_money(dbutils.get_money(customer_num))
+        customer_info = dbutils.get_info(self.customer_num)
+        self.info_area.set_customer(customer_info)
         self.load_old_orders()
         
+        self.input_first_name.insert(0, customer_info.first_name or "")
+        self.input_last_name.insert(0, customer_info.last_name or "")
+        self.input_nickname.insert(0, customer_info.nickname or "")
+
         self.focus_set()
     
     def clear(self):
         self.info_area.clear()
         self.customer_num = 0
         self.input_funds.delete(0, "end")
+        
+        self.input_first_name.delete(0, "end")
+        self.input_last_name.delete(0, "end")
+        self.input_nickname.delete(0, "end")
         
         self.order_history['state'] = 'normal'
         self.order_history.delete("1.0", "end")
@@ -389,7 +427,6 @@ class Order(tk.Frame):
     
     def profile_button_callback(self):
         self.app.open_frame("EditProfile", self.customer_num, return_to="Order")
-        dbutils.add_funds(self.customer_num, value_add)
     
     def add_funds_button_callback(self):
         value = tksimpledialog.askinteger(title="Nabít kredit", prompt="Zadejte, jakou hodnotou chcete nabít kredit:")
@@ -409,22 +446,24 @@ class Order(tk.Frame):
         self.redraw_orders()
     
     def returned_back(self, from_page):
-        self.setup_money()
-        self.focus_set()
+        self.setup(num=self.customer_num)
     
     def setup(self, num, old_order=False):
         self.customer_num = num
-        self.info_area.set_customer(self.customer_num)
+        customer_info = dbutils.get_info(self.customer_num)
+        self.info_area.set_customer(customer_info)
+        self.money = customer_info.balance
         
         #This is yet unused
         #self.old_orders = ""
         
-        self.setup_money()
+        self.setup_money(False)
         
         self.focus_set()
         
-    def setup_money(self):
-        self.money = dbutils.get_money(self.customer_num)
+    def setup_money(self, load_money=True):
+        if load_money:
+            self.money = dbutils.get_money(self.customer_num)
         self.info_area.set_money(self.money)
         self.redraw_orders()
         
@@ -502,6 +541,8 @@ class CutomerTopPanel(tk.Frame):
         info_label.pack(side="left")
         customer_label = self.customer_label = tk.Label(self, text="-", font="BPThicc")
         customer_label.pack(side="left")
+        customer_name_label = self.customer_name_label = tk.Label(self, text="", font="BPThicc")
+        customer_name_label.pack(side="left")
 
 
         czk_label = tk.Label(self, text="Kč", font="BPThicc")
@@ -511,8 +552,23 @@ class CutomerTopPanel(tk.Frame):
         kredit_label = tk.Label(self, text="Kredit:", font="BPThicc")
         kredit_label.pack(side="right")
         
-    def set_customer(self, text):
+    def set_customer(self, customer_info):
+        self.customer_label["text"] = customer_info.customer_id
+        if customer_info.nickname:
+            self.set_customer_name(customer_info.nickname)
+        elif customer_info.first_name and customer_info.last_name:
+            self.set_customer_name(customer_info.first_name+ " " + customer_info.last_name)
+        elif customer_info.first_name or customer_info.last_name:
+            self.set_customer_name(customer_info.first_name or customer_info.last_name)
+        
+        self.money_label["text"] = customer_info.balance;
+    
+    def set_customer_id(self, text):
         self.customer_label["text"] = text;
+    
+    def set_customer_name(self, text):
+        if text:
+            self.customer_name_label["text"] = "("+str(text)+")"
     
     def set_money(self, text):
         self.money_label["text"] = text;
@@ -520,6 +576,7 @@ class CutomerTopPanel(tk.Frame):
     def clear(self):
         self.customer_label["text"] = "-";
         self.money_label["text"] = "-";
+        self.customer_name_label["text"] = ""
 
 class AutoGrid(tk.Frame):
     def __init__(self, root=None, **kwargs):

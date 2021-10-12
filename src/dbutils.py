@@ -1,4 +1,5 @@
 import sqlite3
+from data_classes import *
 
 APP_NAME = "BratroPrachy"
 DB_VERSION = '2'
@@ -133,6 +134,19 @@ def get_money(customer_id):
         if not ret:
             return 0
         return ret
+
+def get_info(customer_id):
+    with sqlite3.connect("prachy.db") as conn:
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT IFNULL(payments.customer_id, :customer_id), first_name, last_name, nickname, SUM(balance_change) AS balance FROM payments
+              LEFT JOIN customers ON customers.customer_id = payments.customer_id
+              WHERE payments.customer_id = :customer_id;
+        """, {"customer_id":customer_id})
+        ret = cur.fetchone()
+        
+        return CustomerInfo(*ret)
         
 def get_export():
     with sqlite3.connect("prachy.db") as conn:
@@ -146,6 +160,15 @@ def get_export():
               ORDER BY payments.customer_id ASC;
         """)
         return cur.fetchall();
+
+def save_info(customer_id, first_name, last_name, nickname):
+    with sqlite3.connect("prachy.db") as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO customers (customer_id, first_name, last_name, nickname) VALUES (:customer_id, :first_name, :last_name, :nickname)
+            ON CONFLICT(customer_id) DO UPDATE SET first_name = :first_name, last_name = :last_name, nickname = :nickname;
+        """, {"customer_id": customer_id, "first_name":first_name or None, "last_name": last_name or None, "nickname": nickname or None})
+        conn.commit()
 
 def save_order(customer_id, order):
     with sqlite3.connect("prachy.db") as conn:
