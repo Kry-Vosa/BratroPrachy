@@ -115,6 +115,8 @@ def prepare_db():
                 create_db_newest(cur)
             else:
                 raise Exception("Neidentifikovatelná databáze! Možná špatný .db soubor?")
+        elif int(version) > int(DB_VERSION):
+            raise Exception(f"Nepoužitelná verze databáze! Možná špatný .db soubor?\nVerze v souboru: {version}\n Verze v programu: {DB_VERSION}")
         else:
             upgrade_db(cur, version)
     

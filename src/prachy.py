@@ -136,7 +136,7 @@ class MainPage(tk.Frame):
                 writer.writerow(["Číslo", "Jméno", "Příjmení", "Přezdívka", "Kredit"])
                 writer.writerows(dbutils.get_export())
         except OSError as ex:
-            tkinter.messagebox.showerror(title="Chyba při ukládání souboru", message="Soubor se nepodařilo správně uložit.", **options)
+            tkmessagebox.showerror(title="Chyba při ukládání souboru", message="Soubor se nepodařilo správně uložit.", **options)
             
         self.config(cursor="")
         self.update()
