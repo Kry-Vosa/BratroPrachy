@@ -2,7 +2,7 @@ import tkinter as tk
 import tkinter.messagebox as tkmessagebox
 import tkinter.scrolledtext as tkscrolledtext
 import tkinter.filedialog as tkfiledialog
-import tkinter.font as tkFont
+import tkinter.font as tkfont
 import sqlite3, json, sys, dbutils, os, os.path, traceback, csv
 from config import schema
 from cerberus import Validator
@@ -17,8 +17,13 @@ def only4Num(inStr, acttyp):
 class App(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-        default_font = tkFont.nametofont("TkDefaultFont")
+        default_font = tkfont.nametofont("TkDefaultFont")
         default_font.configure(size=22, family='Arial')
+        
+        default_font = tkfont.nametofont("TkTextFont")
+        default_font.configure(size=22, family='Arial')
+        
+        main_font = tkfont.Font(family='Arial', size=22, weight="bold", name="BPThicc")
         self.title("Endurova kalkulačka peněz")
         self.wm_geometry("800x600")
         self.state('zoomed')
@@ -86,8 +91,6 @@ class MainPage(tk.Frame):
         self.app = root;
         tk.Frame.__init__(self, root)
         
-        button_font = tkFont.Font(family='Arial', size=22, weight="bold")
-        
         menu_frame = tk.Frame(self)
         menu_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=5)
         
@@ -100,10 +103,10 @@ class MainPage(tk.Frame):
         db_export_button = tk.Button(menu_frame, text="Export DB", bg="#a3ffb3", command=self.db_export_callback)
         db_export_button.pack(side="left", fill="y", expand=True)
         
-        tk.Label(self, text="Číslo:", font=button_font)\
+        tk.Label(self, text="Číslo:", font="BPThicc")\
           .grid(row=2, column=0, sticky="es")
         
-        input_number = self.input_number = tk.Entry(self, font=button_font, width=5, validate="key")
+        input_number = self.input_number = tk.Entry(self, font="BPThicc", width=5, validate="key")
         input_number['validatecommand'] = (input_number.register(only4Num),'%P','%d')
         input_number.bind("<Return>", lambda _: self.open_order())
         input_number.grid(row=2, column=1, sticky="ws")
@@ -163,21 +166,19 @@ class EditProfile(tk.Frame):
         self.app = root;
         tk.Frame.__init__(self, root)
         
-        button_font = tkFont.Font(family='Arial', size=22, weight="bold")
-        
         info_area = self.info_area = CutomerTopPanel(self)
         info_area.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
         
-        order_history = self.order_history = tkscrolledtext.ScrolledText(self, width=30, borderwidth=0, highlightthickness=0, state="disabled", font=tkFont.Font(family='Courier', size=22))
+        order_history = self.order_history = tkscrolledtext.ScrolledText(self, width=30, borderwidth=0, highlightthickness=0, state="disabled", font=tkfont.Font(family='Courier', size=22))
         order_history.grid(row=1, column=1, sticky="nsew")
 
         main_area = tk.Frame(self)
         main_area.grid(row=1, column=0, sticky="nsew", padx=5, pady=15)
         
         add_funds_frame = tk.Frame(main_area)
-        tk.Label(add_funds_frame, text="Nabití kreditu:", font=button_font)\
+        tk.Label(add_funds_frame, text="Nabití kreditu:", font="BPThicc")\
           .pack(side="left", )
-        input_funds = self.input_funds = tk.Entry(add_funds_frame, font=button_font, width=5, validate="key")
+        input_funds = self.input_funds = tk.Entry(add_funds_frame, font="BPThicc", width=5, validate="key")
         input_funds['validatecommand'] = (input_funds.register(only4Num),'%P','%d')
         input_funds.bind("<Return>", lambda _: self.add_funds_button_callback())
         input_funds.pack(side="left")
@@ -188,9 +189,9 @@ class EditProfile(tk.Frame):
         
         
         remove_funds_frame = tk.Frame(main_area)
-        tk.Label(remove_funds_frame, text="Vybití kreditu:", font=button_font)\
+        tk.Label(remove_funds_frame, text="Vybití kreditu:", font="BPThicc")\
           .pack(side="left")
-        input_remove_funds = self.input_remove_funds = tk.Entry(remove_funds_frame, font=button_font, width=5, validate="key")
+        input_remove_funds = self.input_remove_funds = tk.Entry(remove_funds_frame, font="BPThicc", width=5, validate="key")
         input_remove_funds['validatecommand'] = (input_funds.register(only4Num),'%P','%d')
         input_remove_funds.bind("<Return>", lambda _: self.remove_funds_button_callback())
         input_remove_funds.pack(side="left")
@@ -201,7 +202,7 @@ class EditProfile(tk.Frame):
         
         finish_area = tk.Frame(self)
         finish_area.grid(row=2, column=0, columnspan=2, sticky="nsew")
-        back_button=tk.Button(finish_area, text="Zpět", bg="#ff9696", font=button_font, command=self.exit_button_callback)
+        back_button=tk.Button(finish_area, text="Zpět", bg="#ff9696", font="BPThicc", command=self.exit_button_callback)
         back_button.pack(side="left", fill="y", padx=5, pady=5)
         self.bind('<Escape>', lambda _: self.exit_button_callback())
         
@@ -318,8 +319,6 @@ class Order(tk.Frame):
         self.app = root;
         tk.Frame.__init__(self, root)
         
-        button_font = tkFont.Font(family='Arial', size=24, weight="bold")
-        
         info_area = self.info_area = CutomerTopPanel(self)
         info_area.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
         
@@ -330,16 +329,16 @@ class Order(tk.Frame):
             button=self.create_price_button(button_area, settings["color"], settings["value"], settings.get("text", None))
             button.grid()
 
-        prep_area = self.prep_area = tk.Text(self, width=28, borderwidth=0, highlightthickness=0, state="disabled", font=tkFont.Font(family='Courier', size=22));
+        prep_area = self.prep_area = tk.Text(self, width=28, borderwidth=0, highlightthickness=0, state="disabled", font=tkfont.Font(family='Courier', size=22));
         prep_area.grid(row=1, column=1, sticky='sn')
         
         finish_area = tk.Frame(self)
         finish_area.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky="we")
-        done_button=tk.Button(finish_area, text="Zaplatit", bg="#a3ffb3", font=button_font, command=self.done_button_callback)
-        done_button.pack(side="right", fill="y")
+        done_button=tk.Button(finish_area, text="Zaplatit", bg="#a3ffb3", font="BPThicc", command=self.done_button_callback)
+        done_button.pack(side="right")
         
-        cancel_button=tk.Button(finish_area, text="Zrušit", bg="#ff9696", font=button_font, command=self.cancel_button_callback)
-        cancel_button.pack(side="left", fill="y")
+        cancel_button=tk.Button(finish_area, text="Zrušit", bg="#ff9696", font="BPThicc", command=self.cancel_button_callback)
+        cancel_button.pack(side="left")
         self.bind('<Escape>', lambda _: self.cancel_button_callback())
         
         profile_button = tk.Button(finish_area, text="Profil", bg="#fffb80", command=self.profile_button_callback)
@@ -467,7 +466,7 @@ class Order(tk.Frame):
         price_button.place(x=spacing, y=spacing, width=butt_size, height=butt_size)
         price_button["anchor"] = "center"
         price_button["bg"] = color
-        price_button["font"] = tkFont.Font(family='Arial',size=font_size, weight="bold")
+        price_button["font"] = tkfont.Font(family='Arial',size=font_size, weight="bold")
         price_button["fg"] = "#000000"
         price_button["justify"] = "center"
         price_button["text"] = text
@@ -479,19 +478,18 @@ class CutomerTopPanel(tk.Frame):
     def __init__(self, root):
         tk.Frame.__init__(self, root)
         
-        button_font = tkFont.Font(family='Arial', size=22, weight="bold")
         
-        info_label = tk.Label(self, text="Zákazník:", font=button_font)
+        info_label = tk.Label(self, text="Zákazník:", font="BPThicc")
         info_label.pack(side="left")
-        customer_label = self.customer_label = tk.Label(self, text="-", font=button_font)
+        customer_label = self.customer_label = tk.Label(self, text="-", font="BPThicc")
         customer_label.pack(side="left")
 
 
-        czk_label = tk.Label(self, text="Kč", font=button_font)
+        czk_label = tk.Label(self, text="Kč", font="BPThicc")
         czk_label.pack(side="right")
-        money_label = self.money_label = tk.Label(self, text="-", font=button_font)
+        money_label = self.money_label = tk.Label(self, text="-", font="BPThicc")
         money_label.pack(side="right")
-        kredit_label = tk.Label(self, text="Kredit:", font=button_font)
+        kredit_label = tk.Label(self, text="Kredit:", font="BPThicc")
         kredit_label.pack(side="right")
         
     def set_customer(self, text):
