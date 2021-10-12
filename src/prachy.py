@@ -118,7 +118,7 @@ class MainPage(tk.Frame):
         payment_button = tk.Button(buttons_frame, text="Objednávka", bg="#a3ffb3", command=self.open_order)
         payment_button.pack(side="left", padx=5)
         
-        add_money_button = tk.Button(buttons_frame, text="Upravit profil/nabít kredit", bg="#fffb80", command=self.add_money)
+        add_money_button = tk.Button(buttons_frame, text="Upravit profil", bg="#fffb80", command=self.add_money)
         add_money_button.pack(side="left", padx=5)
         
         self.grid_rowconfigure(2, weight=1)
