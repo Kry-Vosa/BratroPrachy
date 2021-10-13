@@ -139,13 +139,18 @@ def get_info(customer_id):
     with sqlite3.connect("prachy.db") as conn:
         cur = conn.cursor()
         
+        #sqlite3 doesn't support full outer joins for some reason. This could be solved nicer with that. Or nicer in general
         cur.execute("""
-            SELECT IFNULL(payments.customer_id, :customer_id), first_name, last_name, nickname, SUM(balance_change) AS balance FROM payments
-              LEFT JOIN customers ON customers.customer_id = payments.customer_id
-              WHERE payments.customer_id = :customer_id;
+            SELECT :customer_id AS customer_id,
+              (SELECT first_name FROM customers WHERE customer_id = :customer_id) AS first_name,
+              (SELECT last_name FROM customers WHERE customer_id = :customer_id) AS last_name,
+              (SELECT nickname FROM customers WHERE customer_id = :customer_id) AS nickname,
+              IFNULL((SELECT SUM(balance_change) FROM payments WHERE customer_id = :customer_id), 0) AS balance
+
         """, {"customer_id":customer_id})
         ret = cur.fetchone()
-        
+        if not ret:
+            ret = (customer_id, None, None, None, 0)
         return CustomerInfo(*ret)
         
 def get_export():
@@ -164,6 +169,7 @@ def get_export():
 def save_info(customer_id, first_name, last_name, nickname):
     with sqlite3.connect("prachy.db") as conn:
         cur = conn.cursor()
+        print([customer_id, first_name, last_name, nickname])
         cur.execute("""
             INSERT INTO customers (customer_id, first_name, last_name, nickname) VALUES (:customer_id, :first_name, :last_name, :nickname)
             ON CONFLICT(customer_id) DO UPDATE SET first_name = :first_name, last_name = :last_name, nickname = :nickname;

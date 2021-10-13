@@ -466,8 +466,6 @@ class Order(tk.Frame):
         #This is yet unused
         #self.old_orders = ""
         
-        self.setup_money(False)
-        
         self.focus_set()
         
     def setup_money(self, load_money=True):
