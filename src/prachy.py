@@ -104,16 +104,23 @@ class MainPage(tk.Frame):
         db_export_button = tk.Button(menu_frame, text="Export DB", bg="#a3ffb3", command=self.db_export_callback)
         db_export_button.pack(side="left", fill="y", expand=True)
         
+        last_num_frame = tk.Frame(self)
+        last_num_frame.grid(row=2, column=0, columnspan=2, sticky="s")
+        tk.Label(last_num_frame, text="Poslední číslo:", font="BPThicc")\
+          .pack(side="left")
+        last_num = self.last_num = tk.Label(last_num_frame, text="", font="BPThicc")
+        last_num.pack(side="left")
+        
         tk.Label(self, text="Číslo:", font="BPThicc")\
-          .grid(row=2, column=0, sticky="es")
+          .grid(row=3, column=0, sticky="es")
         
         input_number = self.input_number = tk.Entry(self, font="BPThicc", width=5, validate="key")
         input_number['validatecommand'] = (input_number.register(only4Num),'%P','%d')
         input_number.bind("<Return>", lambda _: self.open_order())
-        input_number.grid(row=2, column=1, sticky="ws")
+        input_number.grid(row=3, column=1, sticky="ws")
         
         buttons_frame = tk.Frame(self)
-        buttons_frame.grid(row=3, columnspan=2, sticky="n", pady=10,)
+        buttons_frame.grid(row=4, columnspan=2, sticky="n", pady=10,)
         
         payment_button = tk.Button(buttons_frame, text="Objednávka", bg="#a3ffb3", command=self.open_order)
         payment_button.pack(side="left", padx=5)
@@ -122,7 +129,7 @@ class MainPage(tk.Frame):
         add_money_button.pack(side="left", padx=5)
         
         self.grid_rowconfigure(2, weight=1)
-        self.grid_rowconfigure(3, weight=1)
+        self.grid_rowconfigure(4, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
         
@@ -145,6 +152,7 @@ class MainPage(tk.Frame):
         if not self.input_number.get():
             return
         val = int(self.input_number.get())
+        self.last_num["text"] = val
         self.clear()
         self.app.open_frame("Order", val)
     
@@ -152,6 +160,7 @@ class MainPage(tk.Frame):
         if not self.input_number.get():
             return
         val = int(self.input_number.get())
+        self.last_num["text"] = val
         self.clear()
         self.app.open_frame("EditProfile", val)
     
